@@ -27,9 +27,20 @@ public class WebCamController : MonoBehaviour {
     float timeCheckScreenDir = 0.3f;
 
     /// <summary>
+    /// 瞳孔間距離(mm)
+    /// </summary>
+    [SerializeField, Range(60, 90)]
+    float pupilDist = 68;
+
+    /// <summary>
     /// カメラ映像のテクスチャ
     /// </summary>
     public WebCamTexture DevCamTexture { get { return webcamTexture; } }
+
+    /// <summary>
+    /// 瞳孔間距離(mm)
+    /// </summary>
+    public float PupilDistance { get { return pupilDist; } }
 
     /// <summary>
     /// カメラの解像度
