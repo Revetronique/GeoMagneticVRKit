@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using System;
 using System.Collections;
 
 public class DeviceDirection : MonoBehaviour {
@@ -11,7 +12,7 @@ public class DeviceDirection : MonoBehaviour {
     /// <summary>
     /// 方位計測に使うセンサー
     /// </summary>
-    [SerializeField]
+    [SerializeField, Tooltip("センサー(地磁気, ジャイロ, 地磁気+ジャイロ)")]
     ActiveSensor sensorMode = ActiveSensor.GEOMAG;
 
     /// <summary>
@@ -34,32 +35,37 @@ public class DeviceDirection : MonoBehaviour {
     double lastCompassTime;
 
     //デバイスのピッチ角、ロール角
-    float rolling, pitching;
-    
+    float rolling, pitching, yawing;
+
     /// <summary>
     /// デバイスのロール角(左右の傾き)
     /// </summary>
     public float Rolling { get { return rolling; } }
-    
+
     /// <summary>
     /// デバイスのピッチ角(上下の傾き)
     /// </summary>
     public float Pitching { get { return pitching; } }
 
     /// <summary>
+    /// デバイスのヨー角(方位)
+    /// </summary>
+    public float Yawing { get { return yawing; } }
+
+    /// <summary>
     /// どのセンサーを使用しているか
     /// </summary>
     public ActiveSensor SensorMode { get { return sensorMode; } }
-    
-	// Use this for initialization
-	void Start ()
+
+    // Use this for initialization
+    void Start()
     {
         //センサーの初期化
         SettingSensors(sensorMode);
     }
 
     // Update is called once per frame
-    void Update ()
+    void Update()
     {
         //デバイスの方位と傾き(ロール、ヨー、ピッチ角)を更新
         updateDeviceRot();
@@ -73,58 +79,66 @@ public class DeviceDirection : MonoBehaviour {
     /// </summary>
     void updateDeviceRot()
     {
-        //加速度センサでロールとピッチ角をとるか
-        bool accRollPith = true;
-        //地磁気センサでヨー角をとるか
-        bool geomagYaw = false;
-
         //ジャイロセンサのみ
         if (sensorMode == ActiveSensor.GYRO)
         {
-            //デバイスの傾き(ピッチ、ロール角)は、デバイスの動く速さで決める
-            accRollPith = Input.gyro.rotationRateUnbiased.magnitude < ThresRotRate;
+            //ジャイロの方向
+            Vector3 gyroDir = GetGyroDir();
+            
+            targetDirection = Quaternion.Euler(gyroDir);
         }
         //地磁気+ジャイロ
         else if (sensorMode == ActiveSensor.GYROGEOMAG)
         {
-            //デバイスの傾き(ピッチ、ロール角)は、デバイスの動く速さで決める
-            accRollPith = Input.gyro.rotationRateUnbiased.magnitude < ThresRotRate;
-            geomagYaw = Input.compass.timestamp > lastCompassTime;
+            //ジャイロの回転速度
+            Vector3 gyroSpeed = Input.gyro.rotationRateUnbiased;
+
+            //デバイスの傾き(ピッチ、ロール角)を求める
+            if (gyroSpeed.magnitude < ThresRotRate)
+            {
+                //加速度センサから
+                GetAccGrad(out rolling, out pitching);
+            }
+            else
+            {
+                //ジャイロの差分で求める
+                rolling += gyroSpeed.y * Time.deltaTime;
+                pitching += gyroSpeed.z * Time.deltaTime;
+            }
+
+            //ヨー角(Y軸回転)
+            if (Input.compass.timestamp > lastCompassTime)
+            {
+                //時刻を更新
+                lastCompassTime = Input.compass.timestamp;
+
+                //地磁気から求める
+                yawing = GetFlatNorth().y;
+            }
+            else
+            {
+                //ジャイロの差分で求める
+                yawing += gyroSpeed.x * Time.deltaTime;
+            }
+
+            //オブジェクトの目標角度を変更する
+            targetDirection = Quaternion.Euler(pitching, yawing, rolling);
         }
         //デフォルト(地磁気のみ)
         else
         {
-            geomagYaw = Input.compass.timestamp > lastCompassTime;
-        }
+            if (Input.compass.timestamp > lastCompassTime)
+            {
+                //時刻を更新
+                lastCompassTime = Input.compass.timestamp;
 
-        Vector3 gyroDir = GetGyroDir();
-        //デバイスの傾き(ピッチ、ロール角)を求める
-        if (accRollPith)
-        {
-            //加速度センサから
-            GetAccGrad(out rolling, out pitching);
-        }
-        else
-        {
-            //ジャイロセンサから
-            rolling = gyroDir.x;
-            pitching = gyroDir.z;
-        }
-        //デバイスのヨー角を求める
-        if(geomagYaw)
-        {
-            //時刻を更新
-            lastCompassTime = Input.compass.timestamp;
+                //加速度センサからデバイスの傾き(ピッチ、ロール角)を求める
+                GetAccGrad(out rolling, out pitching);
 
-            //オブジェクトの目標角度を変更する
-            //ヨー角(Y軸回転)は地磁気から求める
-            targetDirection = Quaternion.Euler(pitching, GetFlatNorth().y, rolling);
-        }
-        //ヨー角(Y軸回転)はジャイロから求める
-        else if (Input.gyro.enabled)
-        {
-            //オブジェクトの目標角度を変更する
-            targetDirection = Quaternion.Euler(pitching, gyroDir.y, rolling);
+                //オブジェクトの目標角度を変更する
+                //ヨー角(Y軸回転)は地磁気から求める
+                targetDirection = Quaternion.Euler(pitching, GetFlatNorth().y, rolling);
+            }
         }
     }
 
@@ -179,7 +193,7 @@ public class DeviceDirection : MonoBehaviour {
     {
         //地磁気を有効にしておく
         if (!Input.compass.enabled) Input.compass.enabled = true;
-        
+
         Quaternion accOrientation = changeAxis(Quaternion.Euler(Input.acceleration));
         Vector3 gravity = (Input.gyro.enabled) ? Input.gyro.gravity : Input.acceleration.normalized;
         Vector3 flatNorth = CompassRawVector - Vector3.Dot(gravity, CompassRawVector) * gravity;
@@ -209,7 +223,7 @@ public class DeviceDirection : MonoBehaviour {
         //ジャイロが搭載されていれば、ジャイロを有効
         Input.gyro.enabled = SystemInfo.supportsGyroscope;
         //無効化したままであれば、ゼロベクトルを返す
-        if (Input.gyro.enabled) return Vector3.zero;
+        if (!Input.gyro.enabled) return Vector3.zero;
 
         //あらかじめデバイスの傾きを考慮したうえで、ジャイロの角度を返す
         Quaternion targetRotation = Quaternion.Euler(90, 0, 0) * changeAxis(Input.gyro.attitude);
@@ -233,7 +247,7 @@ public class DeviceDirection : MonoBehaviour {
         //Y軸に対するZ軸の割合で前後の傾き
         pitch = Mathf.Rad2Deg * -Mathf.Atan2(acc.z, -acc.y);
     }
-    
+
     #region Utility
     /// <summary>
     /// 地磁気コンパスの生データベクトルをデバイスの向きに合わせて変換
@@ -269,9 +283,9 @@ public class DeviceDirection : MonoBehaviour {
     /// <returns>NanかInfinityの値があるか</returns>
     static bool isNan(Quaternion q)
     {
-        return float.IsNaN(q.x) || float.IsNaN(q.y) || 
+        return float.IsNaN(q.x) || float.IsNaN(q.y) ||
                float.IsNaN(q.z) || float.IsNaN(q.w) ||
-               float.IsInfinity(q.x) || float.IsInfinity(q.y) || 
+               float.IsInfinity(q.x) || float.IsInfinity(q.y) ||
                float.IsInfinity(q.z) || float.IsInfinity(q.w);
     }
 

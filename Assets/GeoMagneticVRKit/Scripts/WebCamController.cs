@@ -17,30 +17,19 @@ public class WebCamController : MonoBehaviour {
     /// <summary>
     /// カメラ映像の出力先
     /// </summary>
-    [SerializeField]
-    GameObject[] webcamOutput;
+    [SerializeField, Tooltip("出力先のカメラオブジェクト")]
+    RawImage[] webcamOutput;
 
     /// <summary>
     /// 切り替え時間
     /// </summary>
-    [SerializeField, Range(0.1f, 2.0f)]
+    [SerializeField, Range(0.1f, 2.0f), Tooltip("画面の縦横切り替えの更新時間")]
     float timeCheckScreenDir = 0.3f;
-
-    /// <summary>
-    /// 瞳孔間距離(mm)
-    /// </summary>
-    [SerializeField, Range(60, 90)]
-    float pupilDist = 68;
 
     /// <summary>
     /// カメラ映像のテクスチャ
     /// </summary>
     public WebCamTexture DevCamTexture { get { return webcamTexture; } }
-
-    /// <summary>
-    /// 瞳孔間距離(mm)
-    /// </summary>
-    public float PupilDistance { get { return pupilDist; } }
 
     /// <summary>
     /// カメラの解像度
@@ -74,9 +63,9 @@ public class WebCamController : MonoBehaviour {
         setCameraRes(Screen.width, Screen.height);
 
         //出力先の決定
-        foreach(GameObject output in webcamOutput)
+        foreach(RawImage output in webcamOutput)
         {
-            output.GetComponent<RawImage>().texture = webcamTexture;
+            output.texture = webcamTexture;
 
             if (Screen.orientation == ScreenOrientation.AutoRotation)
             {
@@ -186,7 +175,7 @@ public class WebCamController : MonoBehaviour {
                         //カメラの解像度変更
                         setCameraRes(Screen.width, Screen.height);
                         //画面の向き
-                        foreach (GameObject output in webcamOutput)
+                        foreach (RawImage output in webcamOutput)
                         {
                             cameraFlip(output.GetComponent<RectTransform>());   
                         }
