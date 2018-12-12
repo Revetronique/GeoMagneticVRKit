@@ -94,3 +94,6 @@ sysinfo.txt
 
 # Crashlytics generated file
 Assets/StreamingAssets/crashlytics-build.properties
+
+# Unity meta file
+*.meta
