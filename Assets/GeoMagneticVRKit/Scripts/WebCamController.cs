@@ -84,7 +84,7 @@ public class WebCamController : MonoBehaviour {
         {
             case RuntimePlatform.Android:
             case RuntimePlatform.IPhonePlayer:
-            case RuntimePlatform.WP8Player:
+            //case RuntimePlatform.WP8Player:
                 //0.1秒ごとに割り込む設定
                 StartCoroutine(checkScreenRotation(timeCheckScreenDir));
                 break;
