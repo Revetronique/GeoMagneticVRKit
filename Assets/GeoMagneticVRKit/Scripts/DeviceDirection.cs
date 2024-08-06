@@ -61,7 +61,7 @@ public class DeviceDirection : MonoBehaviour {
     void Start()
     {
         //センサーの初期化
-        SettingSensors(sensorMode);
+        SettingSensors((int)sensorMode);
     }
 
     // Update is called once per frame
@@ -146,9 +146,11 @@ public class DeviceDirection : MonoBehaviour {
     /// 使うセンサーの初期化
     /// </summary>
     /// <param name="mode"></param>
-    public void SettingSensors(ActiveSensor mode)
+    public void SettingSensors(int mode)
     {
-        switch (mode)
+        sensorMode = (ActiveSensor)mode;
+
+        switch (sensorMode)
         {
             //ジャイロセンサー
             case ActiveSensor.GYRO:
@@ -178,11 +180,8 @@ public class DeviceDirection : MonoBehaviour {
         if (!Input.gyro.enabled)
         {
             Input.compass.enabled = true;
-            mode = ActiveSensor.GEOMAG;
+            sensorMode = ActiveSensor.GEOMAG;
         }
-
-        //使うセンサーのモードを指定
-        sensorMode = mode;
     }
 
     /// <summary>
